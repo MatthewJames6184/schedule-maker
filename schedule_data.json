@@ -1,0 +1,564 @@
+{
+ "employees": [
+  {
+   "id": 8,
+   "name": "Cymbie"
+  },
+  {
+   "id": 5,
+   "name": "Given"
+  },
+  {
+   "id": 4,
+   "name": "James"
+  },
+  {
+   "id": 9,
+   "name": "Justin"
+  },
+  {
+   "id": 6,
+   "name": "Kenneth"
+  },
+  {
+   "id": 7,
+   "name": "Raven"
+  }
+ ],
+ "tray": [
+  {
+   "kind": "text",
+   "text": "\"RELIEVER\""
+  },
+  {
+   "kind": "time",
+   "text": "6:00AM - 2:00PM"
+  },
+  {
+   "kind": "time",
+   "text": "8:00AM - 5:00PM"
+  },
+  {
+   "kind": "time",
+   "text": "2:00PM - 10:00PM"
+  },
+  {
+   "kind": "time",
+   "text": "10:00PM - 6:00AM"
+  },
+  {
+   "kind": "text",
+   "text": "DAY OFF",
+   "color": "#ff0000"
+  },
+  {
+   "kind": "text",
+   "text": "WFH",
+   "color": "#00ffff"
+  },
+  {
+   "kind": "text",
+   "text": "MAINTENANCE",
+   "color": "#000000"
+  }
+ ],
+ "next_id": 10,
+ "cells": [
+  [
+   8,
+   0,
+   [
+    {
+     "kind": "time",
+     "text": "6:00AM - 2:00PM"
+    }
+   ]
+  ],
+  [
+   8,
+   1,
+   [
+    {
+     "kind": "time",
+     "text": "6:00AM - 2:00PM"
+    }
+   ]
+  ],
+  [
+   8,
+   2,
+   [
+    {
+     "kind": "time",
+     "text": "6:00AM - 2:00PM"
+    }
+   ]
+  ],
+  [
+   8,
+   3,
+   [
+    {
+     "kind": "time",
+     "text": "6:00AM - 2:00PM"
+    }
+   ]
+  ],
+  [
+   8,
+   4,
+   [
+    {
+     "kind": "time",
+     "text": "6:00AM - 2:00PM"
+    }
+   ]
+  ],
+  [
+   5,
+   0,
+   [
+    {
+     "kind": "time",
+     "text": "2:00PM - 10:00PM"
+    }
+   ]
+  ],
+  [
+   4,
+   1,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    }
+   ]
+  ],
+  [
+   9,
+   1,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    }
+   ]
+  ],
+  [
+   6,
+   1,
+   [
+    {
+     "kind": "time",
+     "text": "10:00PM - 6:00AM"
+    }
+   ]
+  ],
+  [
+   7,
+   1,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   8,
+   5,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   8,
+   6,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   5,
+   1,
+   [
+    {
+     "kind": "time",
+     "text": "2:00PM - 10:00PM"
+    }
+   ]
+  ],
+  [
+   5,
+   2,
+   [
+    {
+     "kind": "time",
+     "text": "2:00PM - 10:00PM"
+    }
+   ]
+  ],
+  [
+   5,
+   3,
+   [
+    {
+     "kind": "time",
+     "text": "2:00PM - 10:00PM"
+    }
+   ]
+  ],
+  [
+   5,
+   4,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   5,
+   5,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   5,
+   6,
+   [
+    {
+     "kind": "time",
+     "text": "2:00PM - 10:00PM"
+    }
+   ]
+  ],
+  [
+   4,
+   0,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   4,
+   6,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   4,
+   2,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    }
+   ]
+  ],
+  [
+   4,
+   3,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    }
+   ]
+  ],
+  [
+   9,
+   5,
+   [
+    {
+     "kind": "time",
+     "text": "6:00AM - 2:00PM"
+    }
+   ]
+  ],
+  [
+   9,
+   3,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    }
+   ]
+  ],
+  [
+   9,
+   4,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    },
+    {
+     "kind": "text",
+     "text": "WFH",
+     "color": "#00ffff"
+    }
+   ]
+  ],
+  [
+   9,
+   0,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   9,
+   2,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    }
+   ]
+  ],
+  [
+   9,
+   6,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   6,
+   0,
+   [
+    {
+     "kind": "time",
+     "text": "10:00PM - 6:00AM"
+    }
+   ]
+  ],
+  [
+   6,
+   2,
+   [
+    {
+     "kind": "time",
+     "text": "10:00PM - 6:00AM"
+    }
+   ]
+  ],
+  [
+   6,
+   3,
+   [
+    {
+     "kind": "time",
+     "text": "10:00PM - 6:00AM"
+    }
+   ]
+  ],
+  [
+   6,
+   6,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   4,
+   4,
+   [
+    {
+     "kind": "time",
+     "text": "6:00AM - 2:00PM"
+    }
+   ]
+  ],
+  [
+   4,
+   5,
+   [
+    {
+     "kind": "time",
+     "text": "10:00PM - 6:00AM"
+    }
+   ]
+  ],
+  [
+   6,
+   5,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   6,
+   4,
+   [
+    {
+     "kind": "time",
+     "text": "10:00PM - 6:00AM"
+    }
+   ]
+  ],
+  [
+   7,
+   0,
+   [
+    {
+     "kind": "text",
+     "text": "DAY OFF",
+     "color": "#ff0000"
+    }
+   ]
+  ],
+  [
+   7,
+   2,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    }
+   ]
+  ],
+  [
+   7,
+   4,
+   [
+    {
+     "kind": "time",
+     "text": "2:00PM - 10:00PM"
+    }
+   ]
+  ],
+  [
+   7,
+   3,
+   [
+    {
+     "kind": "time",
+     "text": "8:00AM - 5:00PM"
+    }
+   ]
+  ],
+  [
+   7,
+   6,
+   [
+    {
+     "kind": "time",
+     "text": "6:00AM - 2:00PM"
+    }
+   ]
+  ],
+  [
+   7,
+   5,
+   [
+    {
+     "kind": "time",
+     "text": "2:00PM - 10:00PM"
+    }
+   ]
+  ]
+ ],
+ "remarks": [
+  [
+   "NOTE",
+   [
+    "b",
+    "sz_20",
+    "u"
+   ]
+  ],
+  [
+   ": ",
+   [
+    "b",
+    "sz_20"
+   ]
+  ],
+  [
+   "Every SUNDAY @ ",
+   [
+    "b",
+    "i",
+    "sz_20"
+   ]
+  ],
+  [
+   "10:00PM - 6:00AM",
+   [
+    "b",
+    "fg_#ff0000",
+    "i",
+    "sz_20"
+   ]
+  ],
+  [
+   " -- No Duty Operator (CCTV Maintenance)",
+   [
+    "i",
+    "sz_20"
+   ]
+  ],
+  [
+   "\n",
+   []
+  ],
+  [
+   "\n",
+   []
+  ],
+  [
+   "*This is subject to change in case of unforseen emergencies",
+   []
+  ]
+ ],
+ "signature": {
+  "show": true,
+  "name": "ROMEL B. BERMEJO",
+  "title": "Information Technology Officer I",
+  "align": "Center"
+ }
+}
