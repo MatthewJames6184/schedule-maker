@@ -27,8 +27,19 @@ DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sun
 NAME_W, DAY_W, HEADER_H = 160, 110, 40          # minimum widths (columns grow to fit)
 REM_H = 110   # remarks box height
 CHIP_H, CHIP_GAP, MIN_ROW, TRAY_MIN, PAD, MARGIN = 26, 4, 56, 100, 28, 10
-COLORS = {"time": ("#cfe4ff", "#2b6cb0"), "text": ("#d6f5d6", "#2f855a")}
+COLORS = {"time": ("#cfe4ff", "#2b6cb0"), "text": ("#d6f5d6", "#2f855a"), "off": ("#fed7d7", "#c53030")}
+TIME_RE = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)\s*-\s*\d{1,2}:\d{2}\s*(AM|PM)$", re.I)
 SAVE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedule_data.json")
+
+
+def label_kind(label):
+    if label.strip().upper() == "DAY OFF":
+        return "off"
+    return "time" if TIME_RE.match(label.strip()) else "text"
+
+
+def default_day_chips():
+    return [{"kind": "text", "text": d} for d in DAYS] + [{"kind": "text", "text": "Monday to Friday"}]
 
 
 def fit(text, max_w, measure):
@@ -60,12 +71,102 @@ def inside(r, x, y):
 
 
 class App:
+    @property
+    def tray(self):
+        """Boxes to drag: labels (times/text) in Day layout, day names in Shift layout."""
+        return self.tray_labels if self.mode == "days" else default_day_chips()
+
+    def shift_cols(self):
+        extra = []
+        for e in self.entries:
+            lb = e["label"]
+            if lb != "DAY OFF" and lb not in self.shifts and lb not in extra:
+                extra.append(lb)
+        return self.shifts + extra + ["DAY OFF"]
+
+    def headers(self):
+        return DAYS if self.mode == "days" else self.shift_cols()
+
+    def entry_chip(self, e, text):
+        c = {"kind": label_kind(e["label"]), "text": text}
+        if e.get("color"):
+            c["color"] = e["color"]
+        return c
+
+    def cell_groups(self, eid, col, heads):
+        """Boxes shown in one cell. The same entries (employee, day, label) feed both layouts.
+        DAY OFF is never stored: it fills every day the employee has no entry."""
+        mine = [e for e in self.entries if e["emp"] == eid]
+        if self.mode == "days":
+            es = [e for e in mine if e["day"] == col]
+            if not es:
+                return [{"ids": [], "virtual": True, "chip": {"kind": "off", "text": "DAY OFF"}}]
+            return [{"ids": [e["id"]], "chip": self.entry_chip(e, e["label"])} for e in es]
+        virtual = heads[col] == "DAY OFF"
+        if virtual:
+            worked = {e["day"] for e in mine}
+            es = [{"id": None, "day": d, "label": "DAY OFF"} for d in range(7) if d not in worked]
+        else:
+            es = sorted((e for e in mine if e["label"] == heads[col]), key=lambda e: e["day"])
+        groups, by_day = [], {e["day"]: e for e in es}
+
+        def grp(ids, en, text):
+            g = {"ids": [] if virtual else ids, "chip": self.entry_chip(en, text)}
+            if virtual:
+                g["virtual"] = True
+            return g
+
+        if all(d in by_day for d in range(5)):
+            groups.append(grp([by_day[d]["id"] for d in range(5)], by_day[0], "Monday to Friday"))
+            es = [e for e in es if e["day"] >= 5]
+        for e in es:
+            groups.append(grp([e["id"]], e, DAYS[e["day"]]))
+        return groups
+
+    def add_entry(self, emp, day, label, color=None):
+        if label.strip().upper() == "DAY OFF":
+            return
+        if any(e["emp"] == emp and e["day"] == day and e["label"] == label for e in self.entries):
+            return
+        en = {"id": self.next_entry, "emp": emp, "day": day, "label": label}
+        if color:
+            en["color"] = color
+        self.next_entry += 1
+        self.entries.append(en)
+
+    def dedupe(self):
+        seen, out = set(), []
+        for e in self.entries:
+            k = (e["emp"], e["day"], e["label"])
+            if k not in seen:
+                seen.add(k)
+                out.append(e)
+        self.entries = out
+
+    def migrate(self, d):
+        """Load files saved by the older version (separate cells per layout)."""
+        for a, day, chips in d.get("cells", []):
+            for c in chips:
+                self.add_entry(a, day, c["text"], c.get("color"))
+        cols = self.shifts + ["DAY OFF"]
+        for a, col, chips in d.get("shift_cells", []):
+            if col >= len(cols):
+                continue
+            for c in chips:
+                t = c["text"]
+                days = range(5) if t == "Monday to Friday" else ([DAYS.index(t)] if t in DAYS else [])
+                for dd in days:
+                    self.add_entry(a, dd, cols[col], c.get("color"))
+
     def __init__(self, root):
         self.root = root
         root.title("Schedule Maker")
         self.employees = []   # {"id": int, "name": str}
-        self.cells = {}       # (emp_id, day) -> [{"kind","text"}]
-        self.tray = []        # [{"kind","text"}]
+        self.mode = "days"    # view only: "days" = columns are days, "shifts" = columns are time shifts
+        self.shifts = ["8:00AM - 5:00PM", "6:00AM - 2:00PM", "2:00PM - 10:00PM", "10:00PM - 6:00AM"]
+        self.entries = []     # {"id", "emp", "day" (0-6), "label", "color"?} - the one source of truth
+        self.next_entry = 1
+        self.tray_labels = []
         self.next_id = 1
         self.drag = None
         self.load()
@@ -99,6 +200,9 @@ class App:
         ttk.Label(r1, text="     Title:").pack(side="left")
         ttk.Entry(r1, textvariable=self.title_var, width=26).pack(side="left", padx=4)
         ttk.Button(r1, text="Generate", command=self.generate).pack(side="left", padx=12)
+        self.mode_btn = ttk.Button(r1, command=self.toggle_mode)
+        self.mode_btn.pack(side="left")
+        ttk.Button(r1, text="Clear All Cells", command=self.clear_cells).pack(side="left", padx=8)
 
         # row 2: time box
         r2 = ttk.Frame(bar)
@@ -113,7 +217,9 @@ class App:
         ttk.Label(r2, text=":").pack(side="left")
         num(r2, self.t["m2"], 0, 59, "%02.0f").pack(side="left")
         ampm(r2, self.t["a2"]).pack(side="left", padx=4)
-        ttk.Button(r2, text="Add Time Box", command=self.add_time).pack(side="left", padx=8)
+        self.time_btn = ttk.Button(r2, command=self.add_time)
+        self.time_btn.pack(side="left", padx=8)
+        self.update_mode_ui()
 
         # row 3: text box
         r3 = ttk.Frame(bar)
@@ -193,8 +299,8 @@ class App:
     # ---------- data ----------
     def save(self):
         data = {
-            "employees": self.employees, "tray": self.tray, "next_id": self.next_id,
-            "cells": [[k[0], k[1], v] for k, v in self.cells.items()],
+            "employees": self.employees, "next_id": self.next_id, "mode": self.mode, "shifts": self.shifts,
+            "tray": self.tray_labels, "entries": self.entries, "next_entry": self.next_entry,
             "remarks": [[t, tags] for t, tags, _ in self.get_runs()],
             "signature": self.sig_data(),
         }
@@ -308,13 +414,49 @@ class App:
         try:
             with open(SAVE_FILE, encoding="utf-8") as f:
                 d = json.load(f)
-            self.employees, self.tray, self.next_id = d["employees"], d["tray"], d["next_id"]
-            self.cells = {(a, b): v for a, b, v in d["cells"]}
+            self.employees, self.next_id = d["employees"], d["next_id"]
+            self.shifts = d.get("shifts", self.shifts)
+            self.mode = d.get("mode", "days")
+            self.tray_labels = [c for c in d.get("tray", []) if c["text"].strip().upper() != "DAY OFF"]
+            if "entries" in d:
+                self.entries = [e for e in d["entries"] if e["label"].strip().upper() != "DAY OFF"]
+                self.next_entry = d.get("next_entry", 1 + max([e["id"] for e in self.entries] + [0]))
+            else:
+                self.migrate(d)
             self.saved_sig = d.get("signature", {})
             rem = d.get("remarks", [])
             self.saved_remarks = [[rem, []]] if isinstance(rem, str) else rem
         except (OSError, ValueError, KeyError):
             pass
+
+    def update_mode_ui(self):
+        if self.mode == "days":
+            self.mode_btn.config(text="Switch to Shift Layout")
+            self.time_btn.config(text="Add Time Box")
+        else:
+            self.mode_btn.config(text="Switch to Day Layout")
+            self.time_btn.config(text="Add Time Column")
+
+    def toggle_mode(self):
+        self.mode = "shifts" if self.mode == "days" else "days"
+        self.update_mode_ui()
+        self.redraw()
+
+    def clear_cells(self):
+        if not self.entries:
+            return
+        if messagebox.askyesno("Schedule Maker", "Clear every cell?\n(Names and boxes stay.)"):
+            self.entries.clear()
+            self.redraw()
+
+    def delete_column(self, label):
+        n = sum(1 for e in self.entries if e["label"] == label)
+        if n and not messagebox.askyesno("Schedule Maker", f"Delete column \"{label}\" and its {n} entries?"):
+            return False
+        if label in self.shifts:
+            self.shifts.remove(label)
+        self.entries = [e for e in self.entries if e["label"] != label]
+        return True
 
     def add_name(self):
         n = self.name_var.get().strip()
@@ -342,25 +484,39 @@ class App:
 
     def on_double(self, e):
         x, y = self.cxy(e)
-        target = None
-        for r in self.L["tray"]:
-            if inside(r, x, y):
-                target = self.tray[r[4]]
+        tray_chip, ids, current = None, None, None
+        if self.mode == "days":
+            for r in self.L["tray"]:
+                if inside(r, x, y):
+                    tray_chip = self.tray_labels[r[4]]
+                    current = chip_colors(tray_chip)[0]
         for r in self.L["chips"]:
-            if inside(r, x, y):
-                target = self.cells[(r[4], r[5])][r[6]]
-        if target:
-            self.drag = None
-            col = colorchooser.askcolor(initialcolor=chip_colors(target)[0], title="Box color")[1]
-            if col:
-                target["color"] = col
-                self.redraw()
+            if inside(r, x, y) and not r[5].get("virtual"):
+                ids = set(r[5]["ids"])
+                current = chip_colors(r[5]["chip"])[0]
+        if current is None:
+            return
+        self.drag = None
+        col = colorchooser.askcolor(initialcolor=current, title="Box color")[1]
+        if not col:
+            return
+        if tray_chip is not None:
+            tray_chip["color"] = col
+        else:
+            for en in self.entries:
+                if en["id"] in ids:
+                    en["color"] = col
+        self.redraw()
 
     def add_text(self):
         t = self.chip_var.get().strip()
         if not t:
             return
-        self.tray.append(self.new_chip("text", t))
+        if self.mode == "shifts":
+            messagebox.showinfo("Schedule Maker", "Text boxes are made in Day layout "
+                                "(they become their own column in Shift layout).")
+            return
+        self.tray_labels.append(self.new_chip("text", t))
         self.chip_var.set("")
         self.redraw()
 
@@ -373,7 +529,11 @@ class App:
             messagebox.showwarning("Schedule Maker", "Hours must be 1-12 and minutes 0-59.")
             return
         text = f"{h1}:{m1:02d}{self.t['a1'].get()} - {h2}:{m2:02d}{self.t['a2'].get()}"
-        self.tray.append(self.new_chip("time", text))
+        if self.mode == "shifts":
+            if text not in self.shifts:
+                self.shifts.append(text)
+        else:
+            self.tray_labels.append(self.new_chip("time", text))
         self.redraw()
 
     # ---------- layout ----------
@@ -382,11 +542,14 @@ class App:
         m = m or self.f.measure
         mb = mb or self.fb.measure
         L = {"tray": [], "names": [], "cells": [], "chips": []}
+        heads = self.headers()
+        nc = len(heads)
+        grid = {(e["id"], d): self.cell_groups(e["id"], d, heads) for e in self.employees for d in range(nc)}
         name_w = max([NAME_W] + [mb(e["name"]) + PAD for e in self.employees])
         day_w = []
-        for d in range(7):
-            w = [m(c["text"]) + PAD for e in self.employees for c in self.cells.get((e["id"], d), [])]
-            day_w.append(max([DAY_W, mb(DAYS[d]) + PAD] + w))
+        for d in range(nc):
+            w = [m(g["chip"]["text"]) + PAD for e in self.employees for g in grid[(e["id"], d)]]
+            day_w.append(max([DAY_W, mb(heads[d]) + PAD] + w))
         col_x = [MARGIN + name_w]
         for w in day_w:
             col_x.append(col_x[-1] + w)
@@ -402,24 +565,24 @@ class App:
             x += w + 6
         top = y + CHIP_H + 26
         L["top"] = top
+        L["heads"] = [(col_x[d], top, col_x[d + 1], top + HEADER_H, d) for d in range(nc)]
         y = top + HEADER_H
         for emp in self.employees:
-            n = max([len(self.cells.get((emp["id"], d), [])) for d in range(7)] + [0])
+            n = max([len(grid[(emp["id"], d)]) for d in range(nc)] + [0])
             h = max(MIN_ROW, 8 + n * (CHIP_H + CHIP_GAP))
             L["names"].append((MARGIN, y, MARGIN + name_w, y + h, emp["id"]))
-            for d in range(7):
+            for d in range(nc):
                 x1, x2 = col_x[d], col_x[d + 1]
                 L["cells"].append((x1, y, x2, y + h, emp["id"], d))
-                for k, _ in enumerate(self.cells.get((emp["id"], d), [])):
+                for k, g in enumerate(grid[(emp["id"], d)]):
                     cy = y + 6 + k * (CHIP_H + CHIP_GAP)
-                    L["chips"].append((x1 + 6, cy, x2 - 6, cy + CHIP_H, emp["id"], d, k))
+                    L["chips"].append((x1 + 6, cy, x2 - 6, cy + CHIP_H, d, g))
             y += h
         L["bottom"] = y
         L["rem"] = (MARGIN, y + 62, right, y + 62 + REM_H)
         L["sig_y"] = y + 62 + REM_H + 24
         return L
 
-    # ---------- drawing ----------
     def chip(self, r, c, tag=None):
         bg, fg, tx = chip_colors(c)
         self.canvas.create_rectangle(r[0], r[1], r[2], r[3], fill=bg, outline=fg, tags=tag)
@@ -443,7 +606,7 @@ class App:
         nw, cx = L["name_w"], L["col_x"]
         c.create_rectangle(MARGIN, top, MARGIN + nw, top + HEADER_H, fill="#2d3748", outline="#1a202c")
         c.create_text(MARGIN + nw / 2, top + HEADER_H / 2, text="NAME", font=self.fb, fill="white")
-        for d, day in enumerate(DAYS):
+        for d, day in enumerate(self.headers()):
             x1, x2 = cx[d], cx[d + 1]
             c.create_rectangle(x1, top, x2, top + HEADER_H, fill="#2d3748", outline="#1a202c")
             c.create_text((x1 + x2) / 2, top + HEADER_H / 2, text=day, font=self.fb, fill="white")
@@ -453,8 +616,8 @@ class App:
             c.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=emps[eid], font=self.fb)
         for x1, y1, x2, y2, eid, d in L["cells"]:
             c.create_rectangle(x1, y1, x2, y2, fill="white", outline="#1a202c")
-        for x1, y1, x2, y2, eid, d, k in L["chips"]:
-            self.chip((x1, y1, x2, y2), self.cells[(eid, d)][k])
+        for x1, y1, x2, y2, col, g in L["chips"]:
+            self.chip((x1, y1, x2, y2), g["chip"])
         if not self.employees:
             c.create_text(MARGIN, top + HEADER_H + 20, anchor="w", fill="#aaa", font=self.f,
                           text="Add a name above to start.")
@@ -482,8 +645,9 @@ class App:
                 return
         for r in L["chips"]:
             if inside(r, x, y):
-                _, _, _, _, eid, d, k = r
-                self.drag = {"type": "cell", "chip": self.cells[(eid, d)][k], "src": (eid, d, k)}
+                if r[5].get("virtual"):
+                    return
+                self.drag = {"type": "cell", "chip": r[5]["chip"], "ids": list(r[5]["ids"])}
                 return
         for r in L["names"]:
             if inside(r, x, y):
@@ -545,36 +709,58 @@ class App:
         else:
             t = self.target_cell(x, y)
             if t:
-                key = (t[4], t[5])
-                if d["type"] == "cell":
-                    eid, day, k = d["src"]
-                    if (eid, day) != key:
-                        self.cells[(eid, day)].pop(k)
-                        self.cells.setdefault(key, []).append(d["chip"])
-                else:
-                    self.cells.setdefault(key, []).append(dict(d["chip"]))
+                eid, col = t[4], t[5]
+                heads = self.headers()
+                if self.mode == "shifts" and heads[col] == "DAY OFF":
+                    t = None
+            if t:
+                if d["type"] == "cell":                       # move existing entries
+                    for en in self.entries:
+                        if en["id"] in d["ids"]:
+                            en["emp"] = eid
+                            if self.mode == "days":
+                                en["day"] = col
+                            else:
+                                en["label"] = heads[col]
+                else:                                         # new entries from the tray
+                    chip = d["chip"]
+                    if self.mode == "days":
+                        self.add_entry(eid, col, chip["text"], chip.get("color"))
+                    else:
+                        txt = chip["text"]
+                        days = range(5) if txt == "Monday to Friday" else ([DAYS.index(txt)] if txt in DAYS else [])
+                        for dd in days:
+                            self.add_entry(eid, dd, heads[col], self.color)
+                self.dedupe()
         self.redraw()
 
     def on_right_click(self, e):
         x, y = self.cxy(e)
         L = self.L
-        for r in L["tray"]:
-            if inside(r, x, y):
-                self.tray.pop(r[4])
-                return self.redraw()
+        if self.mode == "shifts":
+            heads = self.headers()
+            for r in L["heads"]:
+                if inside(r, x, y) and heads[r[4]] != "DAY OFF":
+                    if self.delete_column(heads[r[4]]):
+                        self.redraw()
+                    return
+        else:
+            for r in L["tray"]:
+                if inside(r, x, y):
+                    self.tray_labels.pop(r[4])
+                    return self.redraw()
         for r in L["chips"]:
-            if inside(r, x, y):
-                self.cells[(r[4], r[5])].pop(r[6])
+            if inside(r, x, y) and not r[5].get("virtual"):
+                ids = set(r[5]["ids"])
+                self.entries = [en for en in self.entries if en["id"] not in ids]
                 return self.redraw()
         for r in L["names"]:
             if inside(r, x, y):
                 eid = r[4]
                 self.employees = [n for n in self.employees if n["id"] != eid]
-                for d in range(7):
-                    self.cells.pop((eid, d), None)
+                self.entries = [en for en in self.entries if en["emp"] != eid]
                 return self.redraw()
 
-    # ---------- generate image ----------
     def pil_font(self, size, bold=False, italic=False):
         key = (size, bold, italic)
         cache = self.__dict__.setdefault("_pf", {})
@@ -649,7 +835,7 @@ class App:
         hdr = (MARGIN, top, MARGIN + L["name_w"], top + HEADER_H)
         dr.rectangle(P(hdr), fill="#2d3748", outline="black")
         center(hdr, "NAME", fb, "white")
-        for d, day in enumerate(DAYS):
+        for d, day in enumerate(self.headers()):
             r = (L["col_x"][d], top, L["col_x"][d + 1], top + HEADER_H)
             dr.rectangle(P(r), fill="#2d3748", outline="black")
             center(r, day, fb, "white")
@@ -660,7 +846,7 @@ class App:
         for r in L["cells"]:
             dr.rectangle(P(r[:4]), fill="white", outline="black")
         for r in L["chips"]:
-            ch = self.cells[(r[4], r[5])][r[6]]
+            ch = r[5]["chip"]
             bg, fg, tx = chip_colors(ch)
             dr.rectangle(P(r[:4]), fill=bg, outline=fg)
             center(r[:4], ch["text"], f, tx)
